@@ -1,64 +1,39 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import AutoScroll from 'embla-carousel-auto-scroll';
 import { usePosts } from '../hooks/usePosts.js';
 import VideoCard from './VideoCard.jsx';
+import { ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CategoryMarquee({ title, categoryId, isGlitter = false }) {
   const { data, isLoading } = usePosts(categoryId);
-  
-  const displayPosts = useMemo(() => {
-    const rawPosts = data?.pages.flat().slice(0, 8) ?? [];
-    if (rawPosts.length === 0) return [];
-    // Ensure we have enough slides for Embla loop
-    return [...rawPosts, ...rawPosts, ...rawPosts, ...rawPosts].slice(0, 16);
-  }, [data]);
+  const rawPosts = data?.pages.flat().slice(0, 8) ?? [];
 
-  // Embla Carousel with AutoScroll plugin
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, dragFree: true, containScroll: 'trimSnaps' },
-    [AutoScroll({ playOnInit: true, speed: 0.4, stopOnInteraction: false, stopOnMouseEnter: true })]
-  );
+  // Embla Setup: No loop, no auto-scroll. Pure manual sliding.
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, dragFree: true });
+  
+  // Smart Hint State
+  const [showHint, setShowHint] = useState(true);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(3);
+      navigator.vibrate(2);
     }
   }, [emblaApi]);
 
-  const TWEEN_FACTOR_BASE = 0.12;
+  // FLICKER-FREE WAVE EFFECT
+  const TWEEN_FACTOR_BASE = 0.15;
 
-  const tweenScale = useCallback((api, eventName) => {
+  const tweenScale = useCallback((api) => {
     const engine = api.internalEngine();
     const scrollProgress = api.scrollProgress();
-    const slidesInView = api.slidesInView();
-    const isScrollEvent = eventName === 'scroll';
 
     api.scrollSnapList().forEach((scrollSnap, snapIndex) => {
       let diffToTarget = scrollSnap - scrollProgress;
       const slidesInSnap = engine.slideRegistry[snapIndex];
 
       slidesInSnap.forEach((slideIndex) => {
-        if (isScrollEvent && !slidesInView.includes(slideIndex)) return;
-
-        if (engine.options.loop) {
-          engine.slideLooper.loopPoints.forEach((loopItem) => {
-            const target = loopItem.target();
-
-            if (slideIndex === loopItem.index && target !== 0) {
-              const sign = Math.sign(target);
-
-              if (sign === -1) {
-                diffToTarget = scrollSnap - (1 + scrollProgress);
-              }
-              if (sign === 1) {
-                diffToTarget = scrollSnap + (1 - scrollProgress);
-              }
-            }
-          });
-        }
-
         const tweenValue = 1 - Math.abs(diffToTarget * TWEEN_FACTOR_BASE);
         const scale = Math.max(0.85, Math.min(1, tweenValue));
         
@@ -76,25 +51,30 @@ export default function CategoryMarquee({ title, categoryId, isGlitter = false }
   useEffect(() => {
     if (!emblaApi) return;
     
-    // Setup selection haptics
     emblaApi.on('select', onSelect);
     
-    // Setup tween scale (wave effect)
     tweenScale(emblaApi);
-    emblaApi
-      .on('reInit', tweenScale)
-      .on('scroll', tweenScale)
-      .on('slideFocus', tweenScale);
+    emblaApi.on('scroll', () => {
+      tweenScale(emblaApi);
+      // Auto-hide the hint as soon as the user starts scrolling
+      if (showHint) setShowHint(false);
+    });
+    emblaApi.on('reInit', () => tweenScale(emblaApi));
 
     return () => {
       emblaApi.off('select', onSelect);
-      emblaApi.off('reInit', tweenScale);
       emblaApi.off('scroll', tweenScale);
-      emblaApi.off('slideFocus', tweenScale);
+      emblaApi.off('reInit', tweenScale);
     };
-  }, [emblaApi, onSelect, tweenScale]);
+  }, [emblaApi, onSelect, tweenScale, showHint]);
 
-  if (displayPosts.length === 0 && !isLoading) return null;
+  // Auto-hide the hint after 4.5 seconds if they don't scroll
+  useEffect(() => {
+    const timer = setTimeout(() => setShowHint(false), 4500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (rawPosts.length === 0 && !isLoading) return null;
 
   return (
     <div style={styles.section}>
@@ -105,29 +85,58 @@ export default function CategoryMarquee({ title, categoryId, isGlitter = false }
         {title}
       </h2>
       
-      {/* Embla Viewport */}
-      <div style={styles.embla} ref={emblaRef}>
-        <div style={styles.emblaContainer}>
-          {isLoading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} style={styles.emblaSlide}>
-                <div className="skeleton" style={{ aspectRatio: '3/4', borderRadius: 16 }} />
-              </div>
-            ))
-          ) : (
-            displayPosts.map((post, idx) => (
-              <div key={`${post.id}-${idx}`} style={styles.emblaSlide}>
-                <div 
-                  className="embla-slide-inner"
-                  style={{ height: '100%', padding: '4px 0', transition: 'transform 0.1s cubic-bezier(0.25, 1, 0.5, 1)' }}
-                >
-                  <VideoCard post={post} disableLayoutAnimation />
+      <div style={styles.marqueeWrapper}>
+        <div style={styles.embla} ref={emblaRef}>
+          <div style={styles.emblaContainer}>
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={styles.emblaSlide}>
+                  <div className="skeleton" style={{ aspectRatio: '3/4', borderRadius: 16 }} />
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            ) : (
+              rawPosts.map((post, idx) => (
+                <div key={`${post.id}-${idx}`} style={styles.emblaSlide}>
+                  <div 
+                    className="embla-slide-inner"
+                    style={{ height: '100%', padding: '4px 0', transformOrigin: 'center center' }}
+                  >
+                    <VideoCard post={post} disableLayoutAnimation />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+
+        {/* Smart Slide Arrow Indicator */}
+        <AnimatePresence>
+          {showHint && rawPosts.length > 2 && !isLoading && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3 }}
+              style={styles.hintContainer}
+            >
+              <div style={styles.hintBox}>
+                <ChevronRight size={22} color="#fff" strokeWidth={3.5} className="swipe-arrow" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      <style>{`
+        @keyframes swipeHint {
+          0% { transform: translateX(0); }
+          50% { transform: translateX(4px); }
+          100% { transform: translateX(0); }
+        }
+        .swipe-arrow {
+          animation: swipeHint 1.2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
@@ -145,9 +154,12 @@ const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
+  marqueeWrapper: {
+    position: 'relative', // Allows absolute positioning of the hint arrow
+  },
   embla: {
     overflow: 'hidden',
-    padding: '0 8px', // offset container padding
+    padding: '0 8px',
   },
   emblaContainer: {
     display: 'flex',
@@ -155,8 +167,30 @@ const styles = {
     marginLeft: 8,
   },
   emblaSlide: {
-    flex: '0 0 105px', // slightly wider cards
+    flex: '0 0 105px', 
     minWidth: 0,
     paddingRight: 10,
+    transform: 'translate3d(0, 0, 0)',
+  },
+  hintContainer: {
+    position: 'absolute',
+    right: 8,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    zIndex: 10,
+    pointerEvents: 'none',
+  },
+  hintBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    background: 'rgba(0,0,0,0.4)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid rgba(255,255,255,0.2)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
   },
 };
