@@ -4,7 +4,7 @@ export function useShare() {
   const [copied, setCopied] = useState(false);
 
   const share = useCallback(async (post) => {
-    const url   = `${window.location.origin}/video/${post.id}`;
+    const url   = `${window.location.origin}/?video=${post.id}`;
     const title = post.product_name ?? 'Check this out on Shop29';
     const text  = post.description ?? '';
 

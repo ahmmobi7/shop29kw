@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Menu } from 'lucide-react';
+import { X, Menu, Home } from 'lucide-react';
 import useStore from '../store/useStore.js';
 import CategoryDrawer from './CategoryDrawer.jsx';
 
@@ -8,6 +8,8 @@ export default function Header() {
   const [menuOpen, setMenuOpen]   = useState(false);
   const activePost                 = useStore((s) => s.activePost);
   const clearActive                = useStore((s) => s.clearActive);
+  const activeCategoryId           = useStore((s) => s.activeCategoryId);
+  const setCategory                = useStore((s) => s.setCategory);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -24,16 +26,23 @@ export default function Header() {
         </div>
 
         {/* Centre: logo */}
-        <div style={styles.logoWrapper}>
+        <div 
+          onClick={() => setCategory(null)} 
+          style={{ ...styles.logoWrapper, cursor: 'pointer' }}
+        >
           <span className="glitter-text" style={styles.logo}>
             SHOP29 (ALHAMRA PHONES)
           </span>
         </div>
 
-        {/* Right: close (modal open) or search placeholder */}
+        {/* Right: close (modal open) or Home button */}
         {activePost ? (
           <button onClick={clearActive} style={styles.iconBtn} aria-label="Close">
             <X size={18} color="#1D1D1F" strokeWidth={2.5} />
+          </button>
+        ) : activeCategoryId ? (
+          <button onClick={() => setCategory(null)} style={styles.iconBtn} aria-label="Home">
+            <Home size={18} color="#1D1D1F" strokeWidth={2.5} />
           </button>
         ) : (
           <div style={{ width: 36 }} />
@@ -46,6 +55,18 @@ export default function Header() {
 }
 
 const styles = {
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(0,0,0,0.05)',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+  },
   header: (scrolled) => ({
     position:          'sticky',
     top:               0,

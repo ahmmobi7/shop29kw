@@ -3,3 +3,4 @@ node_modules/
 .next
 .env
 node_modules
+supabase_schema.sql

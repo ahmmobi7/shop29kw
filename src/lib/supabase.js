@@ -47,6 +47,17 @@ export async function fetchCategories() {
   return data ?? [];
 }
 
+/** Fetch a single post by ID */
+export async function fetchPostById(id) {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, categories(id, name, slug)')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 /** Increment likes on a post (non-atomic shortcut — use DB function for production) */
 export async function incrementLike(postId, currentLikes) {
   const { error } = await supabase

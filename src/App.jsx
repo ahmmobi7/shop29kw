@@ -1,13 +1,32 @@
+import { useEffect } from 'react';
 import Header from './components/Header.jsx';
 import CategoryMarquee from './components/CategoryMarquee.jsx';
 import VideoModal from './components/VideoModal.jsx';
 import { useCategories } from './hooks/useCategories.js';
 import useStore from './store/useStore.js';
 import VideoGrid from './components/VideoGrid.jsx';
+import { fetchPostById } from './lib/supabase.js';
 
 export default function App() {
   const { data: categories = [] } = useCategories();
   const activeCategoryId = useStore((s) => s.activeCategoryId);
+  const setActivePost = useStore((s) => s.setActivePost);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const videoId = params.get('video');
+    
+    if (videoId) {
+      // Clear the URL so we don't fetch again on manual refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      fetchPostById(videoId)
+        .then(post => {
+          if (post) setActivePost(post);
+        })
+        .catch(err => console.error('Failed to load shared video:', err));
+    }
+  }, [setActivePost]);
 
   const preferredOrder = ['Top Offers', 'Electronics', 'Toys', 'Torch', 'Massager'];
   const sortedCategories = [...categories].sort((a, b) => {
