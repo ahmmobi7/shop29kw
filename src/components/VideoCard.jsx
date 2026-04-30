@@ -6,7 +6,7 @@ import { useLike } from '../hooks/useLike.js';
 import { useShare } from '../hooks/useShare.js';
 import useStore from '../store/useStore.js';
 
-export default function VideoCard({ post, isDuplicate = false }) {
+export default function VideoCard({ post, disableLayoutAnimation = false }) {
   const setActivePost = useStore((s) => s.setActivePost);
   const { liked, count, toggleLike } = useLike(post);
   const { share, copied } = useShare();
@@ -48,7 +48,7 @@ export default function VideoCard({ post, isDuplicate = false }) {
 
   return (
     <motion.div
-      layoutId={isDuplicate ? undefined : `card-${post.id}`}
+      layoutId={disableLayoutAnimation ? undefined : `card-${post.id}`}
       onClick={() => setActivePost(post)}
       style={styles.card}
       whileTap={{ scale: 0.97 }}
