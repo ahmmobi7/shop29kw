@@ -1,10 +1,43 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
+import AutoScroll from 'embla-carousel-auto-scroll';
 import { usePosts } from '../hooks/usePosts.js';
 import VideoCard from './VideoCard.jsx';
+import { motion } from 'framer-motion';
 
 export default function CategoryMarquee({ title, categoryId, isGlitter = false }) {
   const { data, isLoading } = usePosts(categoryId);
   const rawPosts = data?.pages.flat().slice(0, 8) ?? [];
+
+  // Embla Carousel with AutoScroll plugin
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, dragFree: true, containScroll: 'trimSnaps' },
+    [AutoScroll({ playOnInit: true, speed: 0.6, stopOnInteraction: false, stopOnMouseEnter: true })]
+  );
+
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    const current = emblaApi.selectedScrollSnap();
+    if (current !== selectedIndex) {
+      setSelectedIndex(current);
+      // Haptic piano effect: light vibration when snapping to a new card
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(4);
+      }
+    }
+  }, [emblaApi, selectedIndex]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', onSelect);
+    emblaApi.on('settle', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+      emblaApi.off('settle', onSelect);
+    };
+  }, [emblaApi, onSelect]);
 
   if (rawPosts.length === 0 && !isLoading) return null;
 
@@ -17,46 +50,38 @@ export default function CategoryMarquee({ title, categoryId, isGlitter = false }
         {title}
       </h2>
       
-      <div style={styles.marqueeWrapper} className="hide-scroll">
-        <div style={styles.marqueeContent} className="marquee-animation">
+      {/* Embla Viewport */}
+      <div style={styles.embla} ref={emblaRef}>
+        <div style={styles.emblaContainer}>
           {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={styles.slide}>
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} style={styles.emblaSlide}>
                 <div className="skeleton" style={{ aspectRatio: '3/4', borderRadius: 16 }} />
               </div>
             ))
           ) : (
-            // Render the list multiple times for seamless looping
-            [...rawPosts, ...rawPosts, ...rawPosts].map((post, idx) => (
-              <div key={`${post.id}-${idx}`} style={styles.slide}>
-                <VideoCard post={post} />
+            rawPosts.map((post, idx) => (
+              <div key={`${post.id}-${idx}`} style={styles.emblaSlide}>
+                <motion.div
+                  style={{ height: '100%', padding: '4px 0' }}
+                  whileTap={{ scale: 0.95 }}
+                  animate={{ scale: selectedIndex === idx ? 1.02 : 0.98 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                >
+                  <VideoCard post={post} />
+                </motion.div>
               </div>
             ))
           )}
         </div>
       </div>
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-33.33%); }
-        }
-        .marquee-animation {
-          animation: marquee 60s linear infinite;
-        }
-        .marquee-animation:hover {
-          animation-play-state: paused;
-        }
-        .hide-scroll::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   );
 }
 
 const styles = {
   section: {
-    padding: '0 0 28px 0',
+    padding: '0 0 24px 0',
     overflow: 'hidden',
   },
   title: {
@@ -67,20 +92,18 @@ const styles = {
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   },
-  marqueeWrapper: {
-    width: '100%',
+  embla: {
     overflow: 'hidden',
-    position: 'relative',
+    padding: '0 8px', // offset container padding
   },
-  marqueeContent: {
+  emblaContainer: {
     display: 'flex',
-    width: 'fit-content',
-    willChange: 'transform',
-    paddingLeft: 16,
+    touchAction: 'pan-y pinch-zoom',
+    marginLeft: 8,
   },
-  slide: {
-    flex: '0 0 80px',
-    marginRight: 10,
-    scrollSnapAlign: 'start',
+  emblaSlide: {
+    flex: '0 0 105px', // slightly wider cards
+    minWidth: 0,
+    paddingRight: 10,
   },
 };
