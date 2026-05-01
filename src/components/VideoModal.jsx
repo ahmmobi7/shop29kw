@@ -182,6 +182,12 @@ function getEmbedSrc(post) {
   if (!post?.embed_url) return null;
   let url = post.embed_url;
   
+  // Convert TikTok embed/v2/ to player/v1/ for iframe compatibility
+  if (url.includes('tiktok.com/embed/v2/')) {
+    url = url.replace('tiktok.com/embed/v2/', 'tiktok.com/player/v1/');
+    url += (url.includes('?') ? '&' : '?') + 'music_info=1&description=1';
+  }
+
   // Force autoplay and mute for better mobile experience
   if (url.includes('youtube.com/embed')) {
     url += (url.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
