@@ -133,10 +133,16 @@ function EmbedPlayer({ post }) {
         <iframe
           src={isSrc}
           title={post.product_name ?? 'Video'}
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+          // ✅ FIX 1: Added storage-access and fullscreen to allow attribute
+          allow="autoplay; fullscreen; clipboard-write; encrypted-media; picture-in-picture; web-share; storage-access"
           allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin allow-top-navigation allow-forms"
+          // ✅ FIX 2: Changed from strict-origin-when-cross-origin — TikTok's
+          //    embed server rejects requests with that strict policy.
+          referrerPolicy="no-referrer-when-downgrade"
+          // ✅ FIX 3: Removed sandbox entirely. The sandbox attribute was
+          //    overriding the allow attribute and blocking TikTok's player
+          //    scripts from accessing storage and autoplay mechanisms,
+          //    causing a silent blank/broken iframe.
           style={styles.iframe}
         />
       ) : (
@@ -180,18 +186,22 @@ function SideActions({ post }) {
   );
 }
 
+// ✅ FIX 4: Added TikTok autoplay params (was only being done for YouTube before)
 function getEmbedSrc(post) {
   if (!post?.embed_url) return null;
   let url = post.embed_url;
 
-  // Force autoplay and mute for better mobile experience
   if (url.includes('youtube.com/embed')) {
     url += (url.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
   }
 
-  // TikTok: keep embed/v2/ as-is — it is TikTok's official iframe-safe endpoint.
-  // Do NOT convert to /player/v1/ — that URL sends X-Frame-Options headers
-  // that block it from loading inside any cross-origin iframe.
+  // TikTok: append autoplay. music_volume=0 mutes audio on autoplay
+  // so browsers don't block it (browsers block audible autoplay).
+  // embed/v2/ is TikTok's official iframe-safe endpoint — do NOT use
+  // /player/v1/ which sends X-Frame-Options: DENY headers.
+  if (url.includes('tiktok.com/embed')) {
+    url += (url.includes('?') ? '&' : '?') + 'autoplay=1&music_volume=0';
+  }
 
   return url;
 }
@@ -275,7 +285,7 @@ const styles = {
     background: 'rgba(0,0,0,0.3)',
     borderRadius: '50%',
     padding: 8,
-    display: 'none', // user asked for back button, maybe keep close as fallback or hide
+    display: 'none',
   },
   sideActions: {
     position:      'absolute',
