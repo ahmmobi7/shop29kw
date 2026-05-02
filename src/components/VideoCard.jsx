@@ -115,8 +115,8 @@ export default function VideoCard({ post, disableLayoutAnimation = false }) {
           </p>
         </div>
         <div style={styles.infoRight}>
-          {post.product_price && (
-            <p style={styles.price}>KWD {Number(post.product_price).toFixed(2)}</p>
+          {post.product_price && Number(post.product_price) > 0 && (
+            <p style={styles.price}>KWD {Number(post.product_price).toFixed(3)}</p>
           )}
           <button onClick={handleCartClick} style={styles.cartBtn} aria-label="Add to cart">
             <ShoppingCart size={10} color="#fff" strokeWidth={2.5} />

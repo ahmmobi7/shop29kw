@@ -108,7 +108,9 @@ export default function VideoModal() {
                   
                   <div style={styles.cardContent}>
                     <p style={styles.cardTitle}>{activePost.product_name}</p>
-                    <p style={styles.cardPrice}>KWD {Number(activePost.product_price).toFixed(2)}</p>
+                    {activePost.product_price ? (
+                      <p style={styles.cardPrice}>KWD {Number(activePost.product_price).toFixed(3)}</p>
+                    ) : null}
                     <p style={styles.cardDesc}>{activePost.description}</p>
                     {activePost.categories?.name && (
                       <span style={styles.cardTag}>{activePost.categories.name}</span>
