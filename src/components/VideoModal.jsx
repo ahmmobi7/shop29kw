@@ -186,7 +186,9 @@ function SideActions({ post }) {
   );
 }
 
-// ✅ FIX 4: Added TikTok autoplay params (was only being done for YouTube before)
+// ✅ Confirmed working from Kuwait: player/v1 works in iframe over HTTP.
+//    The earlier X-Frame-Options issue was only with file:// protocol.
+//    player/v1 supports autoplay, music_info, and description params.
 function getEmbedSrc(post) {
   if (!post?.embed_url) return null;
   let url = post.embed_url;
@@ -195,12 +197,14 @@ function getEmbedSrc(post) {
     url += (url.includes('?') ? '&' : '?') + 'autoplay=1&mute=1';
   }
 
-  // TikTok: append autoplay. music_volume=0 mutes audio on autoplay
-  // so browsers don't block it (browsers block audible autoplay).
-  // embed/v2/ is TikTok's official iframe-safe endpoint — do NOT use
-  // /player/v1/ which sends X-Frame-Options: DENY headers.
-  if (url.includes('tiktok.com/embed')) {
-    url += (url.includes('?') ? '&' : '?') + 'autoplay=1&music_volume=0';
+  // TikTok: convert embed/v2 → player/v1 (confirmed working from Kuwait).
+  // Append autoplay=1 and music_info=1 for the best player experience.
+  if (url.includes('tiktok.com')) {
+    // Normalise: convert embed/v2 to player/v1 if not already
+    url = url.replace('tiktok.com/embed/v2/', 'tiktok.com/player/v1/');
+    // Ensure it's the player/v1 base format
+    const separator = url.includes('?') ? '&' : '?';
+    url += `${separator}autoplay=1&music_info=1&description=1`;
   }
 
   return url;
